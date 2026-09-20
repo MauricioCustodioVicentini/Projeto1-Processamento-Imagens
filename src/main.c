@@ -40,6 +40,27 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+    if (image_is_grayscale(&image))
+    {
+        printf("Imagem de entrada: escala de cinza.\n");
+        printf("Conversao para escala de cinza nao necessaria.\n");
+    }
+    else
+    {
+        printf("Imagem de entrada: colorida.\n");
+        printf("Convertendo para escala de cinza...\n");
+
+        if (!image_convert_to_grayscale(&image))
+        {
+            image_destroy(&image);
+            SDL_Quit();
+
+            return EXIT_FAILURE;
+        }
+
+        printf("Conversao para escala de cinza concluida.\n");
+    }
+
     image_destroy(&image);
 
     SDL_Quit();
