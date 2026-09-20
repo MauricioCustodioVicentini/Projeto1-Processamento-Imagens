@@ -55,6 +55,109 @@ bool image_load(const char *filename, Image *image)
     return true;
 }
 
+bool image_is_grayscale(const Image *image)
+{
+    if (image == NULL || image->surface == NULL)
+    {
+        return false;
+    }
+
+    SDL_Surface *surface = image->surface;
+
+    if (!SDL_LockSurface(surface))
+    {
+        fprintf(
+            stderr,
+            "Erro ao acessar os pixels da imagem: %s\n",
+            SDL_GetError()
+        );
+
+        return false;
+    }
+
+    bool is_grayscale = true;
+
+    for (int y = 0; y < surface->h && is_grayscale; y++)
+    {
+        Uint8 *row = (Uint8 *)surface->pixels + y * surface->pitch;
+
+        for (int x = 0; x < surface->w; x++)
+        {
+            Uint8 *pixel = row + x * 4;
+
+            Uint8 r = pixel[0];
+            Uint8 g = pixel[1];
+            Uint8 b = pixel[2];
+
+            if (r != g || g != b)
+            {
+                is_grayscale = false;
+                break;
+            }
+        }
+    }
+
+    SDL_UnlockSurface(surface);
+
+    return is_grayscale;
+}
+
+bool image_convert_to_grayscale(Image *image)
+{
+    if (image == NULL || image->surface == NULL)
+    {
+        fprintf(stderr, "Erro: imagem invalida para conversao.\n");
+        return false;
+    }
+
+    SDL_Surface *surface = image->surface;
+
+    if (!SDL_LockSurface(surface))
+    {
+        fprintf(
+            stderr,
+            "Erro ao acessar os pixels da imagem: %s\n",
+            SDL_GetError()
+        );
+
+        return false;
+    }
+
+    for (int y = 0; y < surface->h; y++)
+    {
+        Uint8 *row = (Uint8 *)surface->pixels + y * surface->pitch;
+
+        for (int x = 0; x < surface->w; x++)
+        {
+            Uint8 *pixel = row + x * 4;
+
+            Uint8 r = pixel[0];
+            Uint8 g = pixel[1];
+            Uint8 b = pixel[2];
+
+            double luminance =
+                0.2125 * r +
+                0.7154 * g +
+                0.0721 * b;
+
+            Uint8 gray = (Uint8)(luminance + 0.5);
+
+            pixel[0] = gray;
+            pixel[1] = gray;
+            pixel[2] = gray;
+
+            /*
+             * pixel[3] corresponde ao canal alpha.
+             * Ele é preservado.
+             */
+        }
+    }
+
+    SDL_UnlockSurface(surface);
+
+    return true;
+}
+
 void image_destroy(Image *image)
 {
     if (image == NULL)
