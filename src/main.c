@@ -5,6 +5,7 @@
 #include <SDL3_image/SDL_image.h>
 
 #include "image.h"
+#include "window.h"
 
 int main(int argc, char *argv[])
 {
@@ -19,7 +20,7 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    if (!SDL_Init(0))
+    if (!SDL_Init(SDL_INIT_VIDEO))
     {
         fprintf(
             stderr,
@@ -32,6 +33,18 @@ int main(int argc, char *argv[])
 
     Image image = {
         .surface = NULL
+    };
+
+    AppWindow main_window = {
+        .window = NULL,
+        .renderer = NULL,
+        .image_texture = NULL,
+        .image_rect = {
+            .x = 0.0f,
+            .y = 0.0f,
+            .w = 0.0f,
+            .h = 0.0f
+        }
     };
 
     if (!image_load(argv[1], &image))
@@ -61,6 +74,56 @@ int main(int argc, char *argv[])
         printf("Conversao para escala de cinza concluida.\n");
     }
 
+    if (!window_initialize(&main_window))
+    {
+        image_destroy(&image);
+        SDL_Quit();
+
+        return EXIT_FAILURE;
+    }
+
+    if (!window_set_image(&main_window, image.surface))
+    {
+        window_destroy(&main_window);
+        image_destroy(&image);
+        SDL_Quit();
+
+        return EXIT_FAILURE;
+    }
+
+    bool running = true;
+
+    while (running)
+    {
+        SDL_Event event;
+
+        while (SDL_PollEvent(&event))
+        {
+            switch (event.type)
+            {
+                case SDL_EVENT_QUIT:
+                    running = false;
+                    break;
+
+                case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
+                    running = false;
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        window_render(&main_window);
+
+        /*
+         * Pequena pausa para evitar processamento
+         * desnecessario em velocidade maxima.
+         */
+        SDL_Delay(16);
+    }
+
+    window_destroy(&main_window);
     image_destroy(&image);
 
     SDL_Quit();
