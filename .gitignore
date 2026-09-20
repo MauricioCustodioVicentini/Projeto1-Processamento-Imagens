@@ -1,0 +1,22 @@
+# Arquivos compilados
+*.o
+*.obj
+*.exe
+
+# Pastas de build
+build/
+bin/
+
+# Arquivo gerado pelo programa
+output_image.png
+
+# VS Code
+.vscode/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Arquivos temporarios
+*.tmp
+*.log
