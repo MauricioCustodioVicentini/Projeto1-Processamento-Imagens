@@ -7,15 +7,6 @@
 typedef struct
 {
     SDL_Surface *surface;
-
-    /*
-     * Copia preservada da imagem original
-     * em escala de cinza.
-     *
-     * Sera usada posteriormente para
-     * retornar a imagem ao estado original
-     * sem recarregar o arquivo.
-     */
     SDL_Surface *original_surface;
 
     bool equalized;
@@ -40,6 +31,10 @@ bool image_preserve_original(
 );
 
 bool image_equalize(
+    Image *image
+);
+
+bool image_restore_original(
     Image *image
 );
 

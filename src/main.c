@@ -272,82 +272,109 @@ int main(int argc, char *argv[])
              * no proximo commit.
              */
             if (action ==
-                INFO_ACTION_EQUALIZE)
+                 INFO_ACTION_EQUALIZE)
             {
+                /*
+                * Se a imagem ainda nao estiver
+                * equalizada, realiza a equalizacao.
+                */
                 if (!image.equalized)
                 {
-                    if (image_equalize(
+                    if (!image_equalize(
                             &image))
                     {
-                        /*
-                         * Atualiza a textura
-                         * da janela principal.
-                         */
-                        if (!window_set_image(
-                                &main_window,
-                                image.surface))
-                        {
-                            fprintf(
-                                stderr,
-                                "Erro ao atualizar imagem apos equalizacao.\n"
-                            );
-
-                            running = false;
-                            continue;
-                        }
-
-                        /*
-                         * Recalcula o histograma
-                         * utilizando a imagem equalizada.
-                         */
-                        if (!histogram_calculate(
-                                &histogram,
-                                image.surface))
-                        {
-                            fprintf(
-                                stderr,
-                                "Erro ao recalcular histograma apos equalizacao.\n"
-                            );
-
-                            running = false;
-                            continue;
-                        }
-
-                        printf(
-                            "Imagem e histograma atualizados apos equalizacao.\n"
+                        fprintf(
+                            stderr,
+                            "Erro ao equalizar imagem.\n"
                         );
 
-                        printf(
-                            "Media de intensidade apos equalizacao: %.2f\n",
-                            histogram.mean
-                        );
-
-                        printf(
-                            "Classificacao da imagem: %s\n",
-                            histogram_brightness_classification(
-                                &histogram
-                            )
-                        );
-
-                        printf(
-                            "Desvio padrao apos equalizacao: %.2f\n",
-                            histogram.standard_deviation
-                        );
-
-                        printf(
-                            "Classificacao do contraste: %s\n",
-                            histogram_contrast_classification(
-                                &histogram
-                            )
-                        );
+                        running = false;
+                        continue;
                     }
                 }
+
+                /*
+                * Se ja estiver equalizada,
+                * restaura a imagem original
+                * preservada na memoria.
+                */
                 else
                 {
-                    printf(
-                        "Imagem ja esta equalizada.\n"
-                    );
+                    if (!image_restore_original(
+                            &image))
+                    {
+                        fprintf(
+                            stderr,
+                            "Erro ao restaurar imagem original.\n"
+                        );
+
+                        running = false;
+                        continue;
+                    }
                 }
+
+                /*
+                * Independente de termos equalizado
+                * ou restaurado, precisamos atualizar
+                * a textura da janela principal.
+                */
+                if (!window_set_image(
+                        &main_window,
+                        image.surface))
+                {
+                    fprintf(
+                        stderr,
+                        "Erro ao atualizar imagem exibida.\n"
+                    );
+
+                    running = false;
+                    continue;
+                }
+
+                /*
+                * O histograma tambem precisa representar
+                * sempre a imagem atualmente exibida.
+                */
+                if (!histogram_calculate(
+                        &histogram,
+                        image.surface))
+                {
+                    fprintf(
+                        stderr,
+                        "Erro ao atualizar histograma.\n"
+                    );
+
+                    running = false;
+                    continue;
+                }
+
+                printf(
+                    "Imagem e histograma atualizados.\n"
+                );
+
+                printf(
+                    "Media de intensidade: %.2f\n",
+                    histogram.mean
+                );
+
+                printf(
+                    "Classificacao da imagem: %s\n",
+                    histogram_brightness_classification(
+                        &histogram
+                    )
+                );
+
+                printf(
+                    "Desvio padrao: %.2f\n",
+                    histogram.standard_deviation
+                );
+
+                printf(
+                    "Classificacao do contraste: %s\n",
+                    histogram_contrast_classification(
+                        &histogram
+                    )
+                );
             }
 
             /*

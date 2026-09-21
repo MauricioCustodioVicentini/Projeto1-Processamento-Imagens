@@ -497,6 +497,73 @@ bool image_equalize(
     return true;
 }
 
+bool image_restore_original(
+    Image *image
+)
+{
+    if (image == NULL ||
+        image->original_surface == NULL)
+    {
+        fprintf(
+            stderr,
+            "Erro: imagem original nao disponivel para restauracao.\n"
+        );
+
+        return false;
+    }
+
+    /*
+     * Cria uma nova copia da imagem original.
+     *
+     * Nao usamos diretamente original_surface
+     * como surface porque queremos manter
+     * original_surface preservada e intocada.
+     */
+    SDL_Surface *restored_surface =
+        SDL_ConvertSurface(
+            image->original_surface,
+            SDL_PIXELFORMAT_RGBA32
+        );
+
+    if (restored_surface == NULL)
+    {
+        fprintf(
+            stderr,
+            "Erro ao restaurar imagem original: %s\n",
+            SDL_GetError()
+        );
+
+        return false;
+    }
+
+    /*
+     * Libera a imagem atual, que neste momento
+     * pode ser a versao equalizada.
+     */
+    if (image->surface != NULL)
+    {
+        SDL_DestroySurface(
+            image->surface
+        );
+    }
+
+    /*
+     * A imagem atual passa a ser novamente
+     * uma copia da original em escala de cinza.
+     */
+    image->surface =
+        restored_surface;
+
+    image->equalized =
+        false;
+
+    printf(
+        "Imagem original restaurada.\n"
+    );
+
+    return true;
+}
+
 void image_destroy(
     Image *image
 )
