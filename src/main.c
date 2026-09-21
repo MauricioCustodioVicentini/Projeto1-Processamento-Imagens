@@ -75,6 +75,30 @@ int main(int argc, char *argv[])
         printf("Conversao para escala de cinza concluida.\n");
     }
 
+    Histogram histogram;
+
+    if (!histogram_calculate(&histogram, image.surface))
+    {
+        image_destroy(&image);
+        SDL_Quit();
+    
+        return EXIT_FAILURE;
+    }
+    
+    printf(
+        "Histograma calculado com sucesso.\n"
+    );
+    
+    printf(
+        "Total de pixels: %llu\n",
+        (unsigned long long)histogram.total_pixels
+    );
+    
+    printf(
+        "Maior frequencia do histograma: %llu\n",
+        (unsigned long long)histogram.max_count
+    );
+
     if (!window_initialize(&main_window))
     {
         image_destroy(&image);
