@@ -45,10 +45,19 @@ int main(int argc, char *argv[])
             .y = 0.0f,
             .w = 0.0f,
             .h = 0.0f
-        }
+        },
+        .id = 0
     };
 
-    if (!image_load(argv[1], &image))
+    InfoWindow info_window = {
+        .window = NULL,
+        .renderer = NULL,
+        .id = 0
+    };
+
+    if (!image_load(
+            argv[1],
+            &image))
     {
         SDL_Quit();
         return EXIT_FAILURE;
@@ -56,81 +65,137 @@ int main(int argc, char *argv[])
 
     if (image_is_grayscale(&image))
     {
-        printf("Imagem de entrada: escala de cinza.\n");
-        printf("Conversao para escala de cinza nao necessaria.\n");
+        printf(
+            "Imagem de entrada: escala de cinza.\n"
+        );
+
+        printf(
+            "Conversao para escala de cinza nao necessaria.\n"
+        );
     }
     else
     {
-        printf("Imagem de entrada: colorida.\n");
-        printf("Convertendo para escala de cinza...\n");
+        printf(
+            "Imagem de entrada: colorida.\n"
+        );
 
-        if (!image_convert_to_grayscale(&image))
+        printf(
+            "Convertendo para escala de cinza...\n"
+        );
+
+        if (!image_convert_to_grayscale(
+                &image))
         {
-            image_destroy(&image);
+            image_destroy(
+                &image
+            );
+
             SDL_Quit();
 
             return EXIT_FAILURE;
         }
 
-        printf("Conversao para escala de cinza concluida.\n");
+        printf(
+            "Conversao para escala de cinza concluida.\n"
+        );
     }
 
     Histogram histogram;
 
-    if (!histogram_calculate(&histogram, image.surface))
+    if (!histogram_calculate(
+            &histogram,
+            image.surface))
     {
-        image_destroy(&image);
+        image_destroy(
+            &image
+        );
+
         SDL_Quit();
-    
+
         return EXIT_FAILURE;
     }
-    
+
     printf(
         "Histograma calculado com sucesso.\n"
     );
-    
+
     printf(
         "Total de pixels: %llu\n",
-        (unsigned long long)histogram.total_pixels
+        (unsigned long long)
+        histogram.total_pixels
     );
-    
+
     printf(
         "Maior frequencia do histograma: %llu\n",
-        (unsigned long long)histogram.max_count
+        (unsigned long long)
+        histogram.max_count
     );
 
     printf(
         "Media de intensidade: %.2f\n",
         histogram.mean
     );
-    
+
     printf(
         "Classificacao da imagem: %s\n",
-        histogram_brightness_classification(&histogram)
+        histogram_brightness_classification(
+            &histogram
+        )
     );
-    
+
     printf(
         "Desvio padrao: %.2f\n",
         histogram.standard_deviation
     );
-    
+
     printf(
         "Classificacao do contraste: %s\n",
-        histogram_contrast_classification(&histogram)
+        histogram_contrast_classification(
+            &histogram
+        )
     );
-    
-    if (!window_initialize(&main_window))
+
+    if (!window_initialize(
+            &main_window))
     {
-        image_destroy(&image);
+        image_destroy(
+            &image
+        );
+
         SDL_Quit();
 
         return EXIT_FAILURE;
     }
 
-    if (!window_set_image(&main_window, image.surface))
+    if (!window_set_image(
+            &main_window,
+            image.surface))
     {
-        window_destroy(&main_window);
-        image_destroy(&image);
+        window_destroy(
+            &main_window
+        );
+
+        image_destroy(
+            &image
+        );
+
+        SDL_Quit();
+
+        return EXIT_FAILURE;
+    }
+
+    if (!info_window_initialize(
+            &info_window,
+            main_window.window))
+    {
+        window_destroy(
+            &main_window
+        );
+
+        image_destroy(
+            &image
+        );
+
         SDL_Quit();
 
         return EXIT_FAILURE;
@@ -142,7 +207,8 @@ int main(int argc, char *argv[])
     {
         SDL_Event event;
 
-        while (SDL_PollEvent(&event))
+        while (SDL_PollEvent(
+            &event))
         {
             switch (event.type)
             {
@@ -151,7 +217,22 @@ int main(int argc, char *argv[])
                     break;
 
                 case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
-                    running = false;
+
+                    if (
+                        event.window.windowID ==
+                        main_window.id
+                    )
+                    {
+                        running = false;
+                    }
+                    else if (
+                        event.window.windowID ==
+                        info_window.id
+                    )
+                    {
+                        running = false;
+                    }
+
                     break;
 
                 default:
@@ -159,17 +240,35 @@ int main(int argc, char *argv[])
             }
         }
 
-        window_render(&main_window);
+        window_render(
+            &main_window
+        );
+
+        info_window_render(
+            &info_window
+        );
 
         /*
-         * Pequena pausa para evitar processamento
-         * desnecessario em velocidade maxima.
+         * Aproximadamente 60 ciclos por segundo.
          */
         SDL_Delay(16);
     }
 
-    window_destroy(&main_window);
-    image_destroy(&image);
+    /*
+     * A janela filha e destruida
+     * antes da janela principal.
+     */
+    info_window_destroy(
+        &info_window
+    );
+
+    window_destroy(
+        &main_window
+    );
+
+    image_destroy(
+        &image
+    );
 
     SDL_Quit();
 
