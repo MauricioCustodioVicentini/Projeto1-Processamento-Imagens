@@ -2,7 +2,6 @@
 #include <stdlib.h>
 
 #include <SDL3/SDL.h>
-#include <SDL3_image/SDL_image.h>
 
 #include "histogram.h"
 #include "image.h"
@@ -55,14 +54,23 @@ int main(int argc, char *argv[])
         .id = 0
     };
 
+    /*
+     * Carregamento da imagem recebida
+     * pela linha de comando.
+     */
     if (!image_load(
             argv[1],
             &image))
     {
         SDL_Quit();
+
         return EXIT_FAILURE;
     }
 
+    /*
+     * Verifica se a imagem ja esta
+     * em escala de cinza.
+     */
     if (image_is_grayscale(&image))
     {
         printf(
@@ -100,6 +108,10 @@ int main(int argc, char *argv[])
         );
     }
 
+    /*
+     * Calculo do histograma e das
+     * informacoes estatisticas.
+     */
     Histogram histogram;
 
     if (!histogram_calculate(
@@ -155,6 +167,9 @@ int main(int argc, char *argv[])
         )
     );
 
+    /*
+     * Criacao da janela principal.
+     */
     if (!window_initialize(
             &main_window))
     {
@@ -167,6 +182,10 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+    /*
+     * Cria a textura da imagem
+     * e prepara sua exibicao.
+     */
     if (!window_set_image(
             &main_window,
             image.surface))
@@ -184,6 +203,10 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+    /*
+     * Criacao da janela secundaria
+     * como filha da janela principal.
+     */
     if (!info_window_initialize(
             &info_window,
             main_window.window))
@@ -203,6 +226,9 @@ int main(int argc, char *argv[])
 
     bool running = true;
 
+    /*
+     * Loop principal da aplicacao.
+     */
     while (running)
     {
         SDL_Event event;
@@ -210,14 +236,53 @@ int main(int argc, char *argv[])
         while (SDL_PollEvent(
             &event))
         {
+            /*
+             * Trata eventos relacionados
+             * aos botoes da janela secundaria.
+             */
+            InfoAction action =
+                info_window_handle_event(
+                    &info_window,
+                    &event
+                );
+
+            /*
+             * Por enquanto os botoes apenas
+             * confirmam o clique no terminal.
+             *
+             * As funcionalidades reais serao
+             * implementadas nos proximos commits.
+             */
+            if (action ==
+                INFO_ACTION_EQUALIZE)
+            {
+                printf(
+                    "Botao de equalizacao clicado.\n"
+                );
+            }
+
+            if (action ==
+                INFO_ACTION_RESOLUTION)
+            {
+                printf(
+                    "Botao de resolucao clicado.\n"
+                );
+            }
+
             switch (event.type)
             {
                 case SDL_EVENT_QUIT:
+
                     running = false;
+
                     break;
 
                 case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
 
+                    /*
+                     * Fecha o programa se qualquer
+                     * uma das duas janelas for fechada.
+                     */
                     if (
                         event.window.windowID ==
                         main_window.id
@@ -236,28 +301,40 @@ int main(int argc, char *argv[])
                     break;
 
                 default:
+
                     break;
             }
         }
 
+        /*
+         * Renderizacao da janela principal.
+         */
         window_render(
             &main_window
         );
 
+        /*
+         * Renderizacao da janela secundaria:
+         * histograma + botoes.
+         */
         info_window_render(
             &info_window,
             &histogram
         );
 
         /*
+         * Pequena pausa para evitar uso
+         * desnecessario de CPU.
+         *
          * Aproximadamente 60 ciclos por segundo.
          */
         SDL_Delay(16);
     }
 
     /*
-     * A janela filha e destruida
-     * antes da janela principal.
+     * Liberacao dos recursos.
+     *
+     * A janela filha e destruida primeiro.
      */
     info_window_destroy(
         &info_window
