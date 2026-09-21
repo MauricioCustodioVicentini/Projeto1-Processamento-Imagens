@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <SDL3/SDL.h>
 
+#include "histogram.h"
+
 enum
 {
     MAIN_WINDOW_WIDTH = 1024,
@@ -29,24 +31,35 @@ typedef struct
     SDL_WindowID id;
 } InfoWindow;
 
-bool window_initialize(AppWindow *app_window);
+bool window_initialize(
+    AppWindow *app_window
+);
 
 bool window_set_image(
     AppWindow *app_window,
     SDL_Surface *surface
 );
 
-void window_render(AppWindow *app_window);
+void window_render(
+    AppWindow *app_window
+);
 
-void window_destroy(AppWindow *app_window);
+void window_destroy(
+    AppWindow *app_window
+);
 
 bool info_window_initialize(
     InfoWindow *info_window,
     SDL_Window *parent_window
 );
 
-void info_window_render(InfoWindow *info_window);
+void info_window_render(
+    InfoWindow *info_window,
+    const Histogram *histogram
+);
 
-void info_window_destroy(InfoWindow *info_window);
+void info_window_destroy(
+    InfoWindow *info_window
+);
 
 #endif
