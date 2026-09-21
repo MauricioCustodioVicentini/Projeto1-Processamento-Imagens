@@ -245,7 +245,8 @@ int main(int argc, char *argv[])
         );
 
         info_window_render(
-            &info_window
+            &info_window,
+            &histogram
         );
 
         /*
