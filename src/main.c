@@ -32,7 +32,9 @@ int main(int argc, char *argv[])
     }
 
     Image image = {
-        .surface = NULL
+        .surface = NULL,
+        .original_surface = NULL,
+        .equalized = false
     };
 
     AppWindow main_window = {
@@ -55,7 +57,7 @@ int main(int argc, char *argv[])
     };
 
     /*
-     * Carregamento da imagem recebida
+     * Carrega a imagem recebida
      * pela linha de comando.
      */
     if (!image_load(
@@ -109,8 +111,26 @@ int main(int argc, char *argv[])
     }
 
     /*
-     * Calculo do histograma e das
-     * informacoes estatisticas.
+     * Preserva uma copia da imagem original
+     * ja em escala de cinza.
+     *
+     * Essa copia sera utilizada posteriormente
+     * para restaurar a imagem sem reler o arquivo.
+     */
+    if (!image_preserve_original(
+            &image))
+    {
+        image_destroy(
+            &image
+        );
+
+        SDL_Quit();
+
+        return EXIT_FAILURE;
+    }
+
+    /*
+     * Calcula o histograma inicial.
      */
     Histogram histogram;
 
@@ -168,7 +188,7 @@ int main(int argc, char *argv[])
     );
 
     /*
-     * Criacao da janela principal.
+     * Cria a janela principal.
      */
     if (!window_initialize(
             &main_window))
@@ -183,8 +203,8 @@ int main(int argc, char *argv[])
     }
 
     /*
-     * Cria a textura da imagem
-     * e prepara sua exibicao.
+     * Cria a textura inicial
+     * da imagem em escala de cinza.
      */
     if (!window_set_image(
             &main_window,
@@ -204,8 +224,8 @@ int main(int argc, char *argv[])
     }
 
     /*
-     * Criacao da janela secundaria
-     * como filha da janela principal.
+     * Cria a janela secundaria
+     * como filha da principal.
      */
     if (!info_window_initialize(
             &info_window,
@@ -226,9 +246,6 @@ int main(int argc, char *argv[])
 
     bool running = true;
 
-    /*
-     * Loop principal da aplicacao.
-     */
     while (running)
     {
         SDL_Event event;
@@ -237,8 +254,8 @@ int main(int argc, char *argv[])
             &event))
         {
             /*
-             * Trata eventos relacionados
-             * aos botoes da janela secundaria.
+             * Processa os eventos dos botoes
+             * da janela secundaria.
              */
             InfoAction action =
                 info_window_handle_event(
@@ -247,20 +264,96 @@ int main(int argc, char *argv[])
                 );
 
             /*
-             * Por enquanto os botoes apenas
-             * confirmam o clique no terminal.
+             * Botao de equalizacao.
              *
-             * As funcionalidades reais serao
-             * implementadas nos proximos commits.
+             * Neste commit ele equaliza apenas
+             * uma vez. A restauracao da imagem
+             * original sera implementada
+             * no proximo commit.
              */
             if (action ==
                 INFO_ACTION_EQUALIZE)
             {
-                printf(
-                    "Botao de equalizacao clicado.\n"
-                );
+                if (!image.equalized)
+                {
+                    if (image_equalize(
+                            &image))
+                    {
+                        /*
+                         * Atualiza a textura
+                         * da janela principal.
+                         */
+                        if (!window_set_image(
+                                &main_window,
+                                image.surface))
+                        {
+                            fprintf(
+                                stderr,
+                                "Erro ao atualizar imagem apos equalizacao.\n"
+                            );
+
+                            running = false;
+                            continue;
+                        }
+
+                        /*
+                         * Recalcula o histograma
+                         * utilizando a imagem equalizada.
+                         */
+                        if (!histogram_calculate(
+                                &histogram,
+                                image.surface))
+                        {
+                            fprintf(
+                                stderr,
+                                "Erro ao recalcular histograma apos equalizacao.\n"
+                            );
+
+                            running = false;
+                            continue;
+                        }
+
+                        printf(
+                            "Imagem e histograma atualizados apos equalizacao.\n"
+                        );
+
+                        printf(
+                            "Media de intensidade apos equalizacao: %.2f\n",
+                            histogram.mean
+                        );
+
+                        printf(
+                            "Classificacao da imagem: %s\n",
+                            histogram_brightness_classification(
+                                &histogram
+                            )
+                        );
+
+                        printf(
+                            "Desvio padrao apos equalizacao: %.2f\n",
+                            histogram.standard_deviation
+                        );
+
+                        printf(
+                            "Classificacao do contraste: %s\n",
+                            histogram_contrast_classification(
+                                &histogram
+                            )
+                        );
+                    }
+                }
+                else
+                {
+                    printf(
+                        "Imagem ja esta equalizada.\n"
+                    );
+                }
             }
 
+            /*
+             * O botao de resolucao ainda
+             * nao executa a funcionalidade real.
+             */
             if (action ==
                 INFO_ACTION_RESOLUTION)
             {
@@ -280,8 +373,8 @@ int main(int argc, char *argv[])
                 case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
 
                     /*
-                     * Fecha o programa se qualquer
-                     * uma das duas janelas for fechada.
+                     * Fecha a aplicacao se qualquer
+                     * uma das janelas for fechada.
                      */
                     if (
                         event.window.windowID ==
@@ -307,7 +400,7 @@ int main(int argc, char *argv[])
         }
 
         /*
-         * Renderizacao da janela principal.
+         * Renderizacao da imagem atual.
          */
         window_render(
             &main_window
@@ -315,26 +408,18 @@ int main(int argc, char *argv[])
 
         /*
          * Renderizacao da janela secundaria:
-         * histograma + botoes.
+         * histograma e botoes.
          */
         info_window_render(
             &info_window,
             &histogram
         );
 
-        /*
-         * Pequena pausa para evitar uso
-         * desnecessario de CPU.
-         *
-         * Aproximadamente 60 ciclos por segundo.
-         */
         SDL_Delay(16);
     }
 
     /*
      * Liberacao dos recursos.
-     *
-     * A janela filha e destruida primeiro.
      */
     info_window_destroy(
         &info_window
