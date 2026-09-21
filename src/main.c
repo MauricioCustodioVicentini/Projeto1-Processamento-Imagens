@@ -4,6 +4,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3_image/SDL_image.h>
 
+#include "histogram.h"
 #include "image.h"
 #include "window.h"
 
