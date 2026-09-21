@@ -15,6 +15,26 @@ enum
     INFO_WINDOW_HEIGHT = 650
 };
 
+typedef enum
+{
+    BUTTON_NORMAL,
+    BUTTON_HOVER,
+    BUTTON_PRESSED
+} ButtonState;
+
+typedef struct
+{
+    SDL_FRect rect;
+    ButtonState state;
+} Button;
+
+typedef enum
+{
+    INFO_ACTION_NONE,
+    INFO_ACTION_EQUALIZE,
+    INFO_ACTION_RESOLUTION
+} InfoAction;
+
 typedef struct
 {
     SDL_Window *window;
@@ -29,6 +49,10 @@ typedef struct
     SDL_Window *window;
     SDL_Renderer *renderer;
     SDL_WindowID id;
+
+    Button equalize_button;
+    Button resolution_button;
+
 } InfoWindow;
 
 bool window_initialize(
@@ -56,6 +80,11 @@ bool info_window_initialize(
 void info_window_render(
     InfoWindow *info_window,
     const Histogram *histogram
+);
+
+InfoAction info_window_handle_event(
+    InfoWindow *info_window,
+    const SDL_Event *event
 );
 
 void info_window_destroy(
