@@ -99,6 +99,26 @@ int main(int argc, char *argv[])
         (unsigned long long)histogram.max_count
     );
 
+    printf(
+        "Media de intensidade: %.2f\n",
+        histogram.mean
+    );
+    
+    printf(
+        "Classificacao da imagem: %s\n",
+        histogram_brightness_classification(&histogram)
+    );
+    
+    printf(
+        "Desvio padrao: %.2f\n",
+        histogram.standard_deviation
+    );
+    
+    printf(
+        "Classificacao do contraste: %s\n",
+        histogram_contrast_classification(&histogram)
+    );
+    
     if (!window_initialize(&main_window))
     {
         image_destroy(&image);
