@@ -2,6 +2,101 @@
 
 #include <stdio.h>
 
+static bool point_inside_rect(
+    float x,
+    float y,
+    const SDL_FRect *rect
+)
+{
+    if (rect == NULL)
+    {
+        return false;
+    }
+
+    return
+        x >= rect->x &&
+        x <= rect->x + rect->w &&
+        y >= rect->y &&
+        y <= rect->y + rect->h;
+}
+
+static void draw_button(
+    SDL_Renderer *renderer,
+    const Button *button
+)
+{
+    if (renderer == NULL ||
+        button == NULL)
+    {
+        return;
+    }
+
+    /*
+     * Cores definidas conforme o estado
+     * de interacao do botao.
+     */
+    switch (button->state)
+    {
+        case BUTTON_HOVER:
+
+            SDL_SetRenderDrawColor(
+                renderer,
+                100,
+                170,
+                240,
+                255
+            );
+
+            break;
+
+        case BUTTON_PRESSED:
+
+            SDL_SetRenderDrawColor(
+                renderer,
+                20,
+                80,
+                150,
+                255
+            );
+
+            break;
+
+        case BUTTON_NORMAL:
+        default:
+
+            SDL_SetRenderDrawColor(
+                renderer,
+                40,
+                120,
+                210,
+                255
+            );
+
+            break;
+    }
+
+    SDL_RenderFillRect(
+        renderer,
+        &button->rect
+    );
+
+    /*
+     * Contorno do botao.
+     */
+    SDL_SetRenderDrawColor(
+        renderer,
+        20,
+        60,
+        100,
+        255
+    );
+
+    SDL_RenderRect(
+        renderer,
+        &button->rect
+    );
+}
+
 static void draw_histogram(
     SDL_Renderer *renderer,
     const Histogram *histogram
@@ -14,10 +109,6 @@ static void draw_histogram(
         return;
     }
 
-    /*
-     * Area reservada para o histograma
-     * dentro da janela secundaria.
-     */
     SDL_FRect graph_area = {
         .x = 30.0f,
         .y = 40.0f,
@@ -26,7 +117,7 @@ static void draw_histogram(
     };
 
     /*
-     * Borda do grafico.
+     * Borda do histograma.
      */
     SDL_SetRenderDrawColor(
         renderer,
@@ -41,10 +132,6 @@ static void draw_histogram(
         &graph_area
     );
 
-    /*
-     * Cada uma das 256 intensidades ocupa
-     * uma parte da largura disponivel.
-     */
     float bar_width =
         graph_area.w /
         (float)HISTOGRAM_LEVELS;
@@ -61,17 +148,10 @@ static void draw_histogram(
          i < HISTOGRAM_LEVELS;
          i++)
     {
-        /*
-         * Frequencia normalizada entre 0 e 1.
-         */
         float normalized_frequency =
             (float)histogram->bins[i] /
             (float)histogram->max_count;
 
-        /*
-         * Altura proporcional ao maior valor
-         * existente no histograma.
-         */
         float bar_height =
             normalized_frequency *
             graph_area.h;
@@ -87,7 +167,6 @@ static void draw_histogram(
                 bar_height,
 
             .w = bar_width,
-
             .h = bar_height
         };
 
@@ -98,7 +177,9 @@ static void draw_histogram(
     }
 }
 
-bool window_initialize(AppWindow *app_window)
+bool window_initialize(
+    AppWindow *app_window
+)
 {
     if (app_window == NULL)
     {
@@ -117,8 +198,12 @@ bool window_initialize(AppWindow *app_window)
 
     app_window->image_rect.x = 0.0f;
     app_window->image_rect.y = 0.0f;
-    app_window->image_rect.w = MAIN_WINDOW_WIDTH;
-    app_window->image_rect.h = MAIN_WINDOW_HEIGHT;
+
+    app_window->image_rect.w =
+        MAIN_WINDOW_WIDTH;
+
+    app_window->image_rect.h =
+        MAIN_WINDOW_HEIGHT;
 
     if (!SDL_CreateWindowAndRenderer(
             "Projeto 1 - Processamento de Imagens",
@@ -225,7 +310,9 @@ bool window_set_image(
     return true;
 }
 
-void window_render(AppWindow *app_window)
+void window_render(
+    AppWindow *app_window
+)
 {
     if (app_window == NULL ||
         app_window->renderer == NULL)
@@ -260,7 +347,9 @@ void window_render(AppWindow *app_window)
     );
 }
 
-void window_destroy(AppWindow *app_window)
+void window_destroy(
+    AppWindow *app_window
+)
 {
     if (app_window == NULL)
     {
@@ -393,7 +482,175 @@ bool info_window_initialize(
         return false;
     }
 
+    /*
+     * Botao de equalizacao.
+     */
+    info_window->equalize_button.rect.x = 60.0f;
+    info_window->equalize_button.rect.y = 390.0f;
+    info_window->equalize_button.rect.w = 300.0f;
+    info_window->equalize_button.rect.h = 60.0f;
+
+    info_window->equalize_button.state =
+        BUTTON_NORMAL;
+
+    /*
+     * Botao de resolucao.
+     */
+    info_window->resolution_button.rect.x = 60.0f;
+    info_window->resolution_button.rect.y = 480.0f;
+    info_window->resolution_button.rect.w = 300.0f;
+    info_window->resolution_button.rect.h = 60.0f;
+
+    info_window->resolution_button.state =
+        BUTTON_NORMAL;
+
     return true;
+}
+
+InfoAction info_window_handle_event(
+    InfoWindow *info_window,
+    const SDL_Event *event
+)
+{
+    if (info_window == NULL ||
+        event == NULL)
+    {
+        return INFO_ACTION_NONE;
+    }
+
+    /*
+     * Movimento do mouse.
+     */
+    if (event->type == SDL_EVENT_MOUSE_MOTION &&
+        event->motion.windowID == info_window->id)
+    {
+        float mouse_x = event->motion.x;
+        float mouse_y = event->motion.y;
+
+        if (point_inside_rect(
+                mouse_x,
+                mouse_y,
+                &info_window->equalize_button.rect))
+        {
+            if (info_window->equalize_button.state !=
+                BUTTON_PRESSED)
+            {
+                info_window->equalize_button.state =
+                    BUTTON_HOVER;
+            }
+        }
+        else
+        {
+            info_window->equalize_button.state =
+                BUTTON_NORMAL;
+        }
+
+        if (point_inside_rect(
+                mouse_x,
+                mouse_y,
+                &info_window->resolution_button.rect))
+        {
+            if (info_window->resolution_button.state !=
+                BUTTON_PRESSED)
+            {
+                info_window->resolution_button.state =
+                    BUTTON_HOVER;
+            }
+        }
+        else
+        {
+            info_window->resolution_button.state =
+                BUTTON_NORMAL;
+        }
+    }
+
+    /*
+     * Botao esquerdo pressionado.
+     */
+    if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+        event->button.windowID == info_window->id &&
+        event->button.button == SDL_BUTTON_LEFT)
+    {
+        float mouse_x = event->button.x;
+        float mouse_y = event->button.y;
+
+        if (point_inside_rect(
+                mouse_x,
+                mouse_y,
+                &info_window->equalize_button.rect))
+        {
+            info_window->equalize_button.state =
+                BUTTON_PRESSED;
+        }
+
+        if (point_inside_rect(
+                mouse_x,
+                mouse_y,
+                &info_window->resolution_button.rect))
+        {
+            info_window->resolution_button.state =
+                BUTTON_PRESSED;
+        }
+    }
+
+    /*
+     * Botao esquerdo liberado.
+     */
+    if (event->type == SDL_EVENT_MOUSE_BUTTON_UP &&
+        event->button.windowID == info_window->id &&
+        event->button.button == SDL_BUTTON_LEFT)
+    {
+        float mouse_x = event->button.x;
+        float mouse_y = event->button.y;
+
+        bool equalize_clicked =
+            info_window->equalize_button.state ==
+                BUTTON_PRESSED &&
+            point_inside_rect(
+                mouse_x,
+                mouse_y,
+                &info_window->equalize_button.rect
+            );
+
+        bool resolution_clicked =
+            info_window->resolution_button.state ==
+                BUTTON_PRESSED &&
+            point_inside_rect(
+                mouse_x,
+                mouse_y,
+                &info_window->resolution_button.rect
+            );
+
+        info_window->equalize_button.state =
+            point_inside_rect(
+                mouse_x,
+                mouse_y,
+                &info_window->equalize_button.rect
+            )
+            ? BUTTON_HOVER
+            : BUTTON_NORMAL;
+
+        info_window->resolution_button.state =
+            point_inside_rect(
+                mouse_x,
+                mouse_y,
+                &info_window->resolution_button.rect
+            )
+            ? BUTTON_HOVER
+            : BUTTON_NORMAL;
+
+        if (equalize_clicked)
+        {
+            return INFO_ACTION_EQUALIZE;
+        }
+
+        if (resolution_clicked)
+        {
+            return INFO_ACTION_RESOLUTION;
+        }
+    }
+
+    return INFO_ACTION_NONE;
 }
 
 void info_window_render(
@@ -407,9 +664,6 @@ void info_window_render(
         return;
     }
 
-    /*
-     * Fundo claro da janela secundaria.
-     */
     SDL_SetRenderDrawColor(
         info_window->renderer,
         245,
@@ -422,12 +676,19 @@ void info_window_render(
         info_window->renderer
     );
 
-    /*
-     * Desenha o histograma atual.
-     */
     draw_histogram(
         info_window->renderer,
         histogram
+    );
+
+    draw_button(
+        info_window->renderer,
+        &info_window->equalize_button
+    );
+
+    draw_button(
+        info_window->renderer,
+        &info_window->resolution_button
     );
 
     SDL_RenderPresent(
