@@ -7,8 +7,16 @@
 #include "image.h"
 #include "window.h"
 
-int main(int argc, char *argv[])
+
+int main(
+    int argc,
+    char *argv[]
+)
 {
+    /*
+     * O programa exige exatamente
+     * um caminho de imagem.
+     */
     if (argc != 2)
     {
         fprintf(
@@ -20,7 +28,11 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    if (!SDL_Init(SDL_INIT_VIDEO))
+    /*
+     * Inicializa o subsistema de video.
+     */
+    if (!SDL_Init(
+            SDL_INIT_VIDEO))
     {
         fprintf(
             stderr,
@@ -41,24 +53,29 @@ int main(int argc, char *argv[])
         .window = NULL,
         .renderer = NULL,
         .image_texture = NULL,
+
         .image_rect = {
             .x = 0.0f,
             .y = 0.0f,
             .w = 0.0f,
             .h = 0.0f
         },
-        .id = 0
+
+        .id = 0,
+        .original_resolution = false
     };
 
     InfoWindow info_window = {
         .window = NULL,
         .renderer = NULL,
-        .id = 0
+        .id = 0,
+
+        .font = NULL,
+        .ttf_initialized = false
     };
 
     /*
-     * Carrega a imagem recebida
-     * pela linha de comando.
+     * Carregamento da imagem.
      */
     if (!image_load(
             argv[1],
@@ -70,10 +87,31 @@ int main(int argc, char *argv[])
     }
 
     /*
-     * Verifica se a imagem ja esta
-     * em escala de cinza.
+     * Verificacao segura da imagem.
+     *
+     * Agora conseguimos diferenciar:
+     *
+     * - erro durante a verificacao;
+     * - imagem colorida;
+     * - imagem em escala de cinza.
      */
-    if (image_is_grayscale(&image))
+    bool is_grayscale =
+        false;
+
+    if (!image_check_grayscale(
+            &image,
+            &is_grayscale))
+    {
+        image_destroy(
+            &image
+        );
+
+        SDL_Quit();
+
+        return EXIT_FAILURE;
+    }
+
+    if (is_grayscale)
     {
         printf(
             "Imagem de entrada: escala de cinza.\n"
@@ -111,11 +149,8 @@ int main(int argc, char *argv[])
     }
 
     /*
-     * Preserva uma copia da imagem original
-     * ja em escala de cinza.
-     *
-     * Essa copia sera utilizada posteriormente
-     * para restaurar a imagem sem reler o arquivo.
+     * Preserva uma copia da imagem
+     * original em escala de cinza.
      */
     if (!image_preserve_original(
             &image))
@@ -203,8 +238,7 @@ int main(int argc, char *argv[])
     }
 
     /*
-     * Cria a textura inicial
-     * da imagem em escala de cinza.
+     * Cria a textura inicial.
      */
     if (!window_set_image(
             &main_window,
@@ -224,8 +258,7 @@ int main(int argc, char *argv[])
     }
 
     /*
-     * Cria a janela secundaria
-     * como filha da principal.
+     * Cria a janela secundaria.
      */
     if (!info_window_initialize(
             &info_window,
@@ -244,8 +277,12 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    bool running = true;
+    bool running =
+        true;
 
+    /*
+     * Loop principal.
+     */
     while (running)
     {
         SDL_Event event;
@@ -254,8 +291,7 @@ int main(int argc, char *argv[])
             &event))
         {
             /*
-             * Processa os eventos dos botoes
-             * da janela secundaria.
+             * Processa os eventos dos botoes.
              */
             InfoAction action =
                 info_window_handle_event(
@@ -264,20 +300,11 @@ int main(int argc, char *argv[])
                 );
 
             /*
-             * Botao de equalizacao.
-             *
-             * Neste commit ele equaliza apenas
-             * uma vez. A restauracao da imagem
-             * original sera implementada
-             * no proximo commit.
+             * Equalizar / Ver original.
              */
             if (action ==
-                 INFO_ACTION_EQUALIZE)
+                INFO_ACTION_EQUALIZE)
             {
-                /*
-                * Se a imagem ainda nao estiver
-                * equalizada, realiza a equalizacao.
-                */
                 if (!image.equalized)
                 {
                     if (!image_equalize(
@@ -288,16 +315,12 @@ int main(int argc, char *argv[])
                             "Erro ao equalizar imagem.\n"
                         );
 
-                        running = false;
+                        running =
+                            false;
+
                         continue;
                     }
                 }
-
-                /*
-                * Se ja estiver equalizada,
-                * restaura a imagem original
-                * preservada na memoria.
-                */
                 else
                 {
                     if (!image_restore_original(
@@ -308,16 +331,17 @@ int main(int argc, char *argv[])
                             "Erro ao restaurar imagem original.\n"
                         );
 
-                        running = false;
+                        running =
+                            false;
+
                         continue;
                     }
                 }
 
                 /*
-                * Independente de termos equalizado
-                * ou restaurado, precisamos atualizar
-                * a textura da janela principal.
-                */
+                 * A textura precisa representar
+                 * a superficie atual.
+                 */
                 if (!window_set_image(
                         &main_window,
                         image.surface))
@@ -327,14 +351,16 @@ int main(int argc, char *argv[])
                         "Erro ao atualizar imagem exibida.\n"
                     );
 
-                    running = false;
+                    running =
+                        false;
+
                     continue;
                 }
 
                 /*
-                * O histograma tambem precisa representar
-                * sempre a imagem atualmente exibida.
-                */
+                 * O histograma tambem deve
+                 * acompanhar a imagem atual.
+                 */
                 if (!histogram_calculate(
                         &histogram,
                         image.surface))
@@ -344,7 +370,9 @@ int main(int argc, char *argv[])
                         "Erro ao atualizar histograma.\n"
                     );
 
-                    running = false;
+                    running =
+                        false;
+
                     continue;
                 }
 
@@ -378,8 +406,7 @@ int main(int argc, char *argv[])
             }
 
             /*
-             * O botao de resolucao ainda
-             * nao executa a funcionalidade real.
+             * Resolucao original / 1024x768.
              */
             if (action ==
                 INFO_ACTION_RESOLUTION)
@@ -393,14 +420,16 @@ int main(int argc, char *argv[])
                         "Erro ao alternar resolucao da imagem.\n"
                     );
 
-                    running = false;
+                    running =
+                        false;
+
                     continue;
                 }
 
                 /*
-                * Garante novamente a posicao prevista
-                * para a janela secundaria.
-                */
+                 * Mantem a janela secundaria
+                 * na posicao definida pelo projeto.
+                 */
                 if (!SDL_SetWindowPosition(
                         info_window.window,
                         0,
@@ -412,7 +441,9 @@ int main(int argc, char *argv[])
                         SDL_GetError()
                     );
 
-                    running = false;
+                    running =
+                        false;
+
                     continue;
                 }
 
@@ -436,58 +467,57 @@ int main(int argc, char *argv[])
                 }
             }
 
+            /*
+             * Eventos gerais.
+             */
             switch (event.type)
             {
                 case SDL_EVENT_QUIT:
 
-                    running = false;
+                    running =
+                        false;
 
                     break;
 
+
                 case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
 
-                    /*
-                     * Fecha a aplicacao se qualquer
-                     * uma das janelas for fechada.
-                     */
                     if (
                         event.window.windowID ==
                         main_window.id
                     )
                     {
-                        running = false;
+                        running =
+                            false;
                     }
                     else if (
                         event.window.windowID ==
                         info_window.id
                     )
                     {
-                        running = false;
+                        running =
+                            false;
                     }
 
                     break;
 
-                default:
-
-                    break;
 
                 case SDL_EVENT_KEY_DOWN:
 
                     /*
-                    * Ignora repeticoes automaticas caso
-                    * o usuario mantenha a tecla pressionada.
-                    */
+                     * Pressionar S salva
+                     * a imagem atualmente exibida.
+                     */
                     if (!event.key.repeat &&
                         event.key.key == SDLK_S)
                     {
                         int save_width;
                         int save_height;
 
-                        /*
-                        * Define a resolucao do arquivo
-                        * conforme o modo atualmente exibido.
-                        */
-                        if (main_window.original_resolution)
+                        if (
+                            main_window.
+                                original_resolution
+                        )
                         {
                             save_width =
                                 image.surface->w;
@@ -518,20 +548,24 @@ int main(int argc, char *argv[])
                     }
 
                     break;
-                
+
+
+                default:
+
+                    break;
             }
         }
 
         /*
-         * Renderizacao da imagem atual.
+         * Renderiza a imagem.
          */
         window_render(
             &main_window
         );
 
         /*
-         * Renderizacao da janela secundaria:
-         * histograma e botoes.
+         * Renderiza histograma,
+         * informacoes e botoes.
          */
         info_window_render(
             &info_window,
@@ -540,11 +574,16 @@ int main(int argc, char *argv[])
             main_window.original_resolution
         );
 
-        SDL_Delay(16);
+        SDL_Delay(
+            16
+        );
     }
 
     /*
      * Liberacao dos recursos.
+     *
+     * A janela secundaria e destruida
+     * antes da principal.
      */
     info_window_destroy(
         &info_window
