@@ -42,6 +42,9 @@ typedef struct
     SDL_Texture *image_texture;
     SDL_FRect image_rect;
     SDL_WindowID id;
+
+    bool original_resolution;
+
 } AppWindow;
 
 typedef struct
@@ -60,6 +63,11 @@ bool window_initialize(
 );
 
 bool window_set_image(
+    AppWindow *app_window,
+    SDL_Surface *surface
+);
+
+bool window_toggle_resolution(
     AppWindow *app_window,
     SDL_Surface *surface
 );

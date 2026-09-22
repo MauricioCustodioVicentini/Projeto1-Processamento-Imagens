@@ -384,9 +384,56 @@ int main(int argc, char *argv[])
             if (action ==
                 INFO_ACTION_RESOLUTION)
             {
-                printf(
-                    "Botao de resolucao clicado.\n"
+                if (!window_toggle_resolution(
+                        &main_window,
+                        image.surface))
+                {
+                    fprintf(
+                        stderr,
+                        "Erro ao alternar resolucao da imagem.\n"
+                    );
+
+                    running = false;
+                    continue;
+                }
+
+                /*
+                * Garante novamente a posicao prevista
+                * para a janela secundaria.
+                */
+                if (!SDL_SetWindowPosition(
+                        info_window.window,
+                        0,
+                        0))
+                {
+                    fprintf(
+                        stderr,
+                        "Erro ao reposicionar janela secundaria: %s\n",
+                        SDL_GetError()
+                    );
+
+                    running = false;
+                    continue;
+                }
+
+                SDL_SyncWindow(
+                    info_window.window
                 );
+
+                if (main_window.original_resolution)
+                {
+                    printf(
+                        "Exibindo imagem na resolucao original: %d x %d.\n",
+                        image.surface->w,
+                        image.surface->h
+                    );
+                }
+                else
+                {
+                    printf(
+                        "Exibindo imagem em 1024 x 768.\n"
+                    );
+                }
             }
 
             switch (event.type)
