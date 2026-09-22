@@ -4,6 +4,7 @@
 
 #include <SDL3_image/SDL_image.h>
 
+
 bool image_load(
     const char *filename,
     Image *image
@@ -39,6 +40,11 @@ bool image_load(
         return false;
     }
 
+    /*
+     * Converte para RGBA32 para garantir
+     * um formato conhecido durante todo
+     * o processamento dos pixels.
+     */
     image->surface =
         SDL_ConvertSurface(
             loaded_surface,
@@ -60,6 +66,26 @@ bool image_load(
         return false;
     }
 
+    /*
+     * Protecao contra dimensoes invalidas.
+     */
+    if (image->surface->w <= 0 ||
+        image->surface->h <= 0)
+    {
+        fprintf(
+            stderr,
+            "Erro: a imagem possui dimensoes invalidas.\n"
+        );
+
+        SDL_DestroySurface(
+            image->surface
+        );
+
+        image->surface = NULL;
+
+        return false;
+    }
+
     printf(
         "Imagem carregada com sucesso: %s\n",
         filename
@@ -74,13 +100,21 @@ bool image_load(
     return true;
 }
 
-bool image_is_grayscale(
-    const Image *image
+
+bool image_check_grayscale(
+    const Image *image,
+    bool *is_grayscale
 )
 {
     if (image == NULL ||
-        image->surface == NULL)
+        image->surface == NULL ||
+        is_grayscale == NULL)
     {
+        fprintf(
+            stderr,
+            "Erro: dados invalidos para verificar escala de cinza.\n"
+        );
+
         return false;
     }
 
@@ -91,18 +125,22 @@ bool image_is_grayscale(
     {
         fprintf(
             stderr,
-            "Erro ao acessar os pixels da imagem: %s\n",
+            "Erro ao acessar pixels para verificar escala de cinza: %s\n",
             SDL_GetError()
         );
 
         return false;
     }
 
-    bool is_grayscale = true;
+    /*
+     * Assume inicialmente que a imagem
+     * esta em escala de cinza.
+     */
+    *is_grayscale = true;
 
     for (int y = 0;
          y < surface->h &&
-         is_grayscale;
+         *is_grayscale;
          y++)
     {
         Uint8 *row =
@@ -120,10 +158,16 @@ bool image_is_grayscale(
             Uint8 g = pixel[1];
             Uint8 b = pixel[2];
 
+            /*
+             * Em uma imagem em escala
+             * de cinza:
+             *
+             * R == G == B
+             */
             if (r != g ||
                 g != b)
             {
-                is_grayscale = false;
+                *is_grayscale = false;
                 break;
             }
         }
@@ -133,8 +177,9 @@ bool image_is_grayscale(
         surface
     );
 
-    return is_grayscale;
+    return true;
 }
+
 
 bool image_convert_to_grayscale(
     Image *image
@@ -184,6 +229,13 @@ bool image_convert_to_grayscale(
             Uint8 g = pixel[1];
             Uint8 b = pixel[2];
 
+            /*
+             * Formula definida no enunciado:
+             *
+             * Y = 0.2125R +
+             *     0.7154G +
+             *     0.0721B
+             */
             double luminance =
                 0.2125 * r +
                 0.7154 * g +
@@ -199,8 +251,8 @@ bool image_convert_to_grayscale(
             pixel[2] = gray;
 
             /*
-             * pixel[3] e o canal alpha.
-             * Ele permanece inalterado.
+             * pixel[3] corresponde ao alpha
+             * e permanece inalterado.
              */
         }
     }
@@ -211,6 +263,7 @@ bool image_convert_to_grayscale(
 
     return true;
 }
+
 
 bool image_preserve_original(
     Image *image
@@ -237,11 +290,8 @@ bool image_preserve_original(
     }
 
     /*
-     * Cria uma nova superficie independente
-     * contendo a imagem atual.
-     *
-     * Neste ponto do programa, a imagem atual
-     * ja deve estar em escala de cinza.
+     * Cria uma copia independente da imagem
+     * original em escala de cinza.
      */
     image->original_surface =
         SDL_ConvertSurface(
@@ -262,6 +312,7 @@ bool image_preserve_original(
 
     return true;
 }
+
 
 bool image_equalize(
     Image *image
@@ -297,8 +348,7 @@ bool image_equalize(
     }
 
     /*
-     * Etapa 1:
-     * calcula o histograma da imagem atual.
+     * Calcula o histograma atual.
      */
     for (int y = 0;
          y < surface->h;
@@ -326,6 +376,9 @@ bool image_equalize(
         (Uint64)surface->w *
         (Uint64)surface->h;
 
+    /*
+     * Protecao contra divisao por zero.
+     */
     if (total_pixels == 0)
     {
         SDL_UnlockSurface(
@@ -341,9 +394,7 @@ bool image_equalize(
     }
 
     /*
-     * Etapa 2:
-     * calcula a funcao de distribuicao
-     * acumulada (CDF).
+     * Calcula a CDF.
      */
     cdf[0] =
         histogram[0];
@@ -369,18 +420,17 @@ bool image_equalize(
     {
         if (histogram[i] != 0)
         {
-            cdf_min = cdf[i];
+            cdf_min =
+                cdf[i];
+
             break;
         }
     }
 
     /*
-     * Caso especial:
-     * uma imagem completamente uniforme
-     * possui apenas uma intensidade.
-     *
-     * Nesse caso nao existe faixa para
-     * expandir por equalizacao.
+     * Uma imagem uniforme possui somente
+     * uma intensidade e nao precisa ser
+     * modificada pela equalizacao.
      */
     if (total_pixels == cdf_min)
     {
@@ -388,7 +438,8 @@ bool image_equalize(
             surface
         );
 
-        image->equalized = true;
+        image->equalized =
+            true;
 
         printf(
             "Equalizacao nao alterou a imagem: intensidades uniformes.\n"
@@ -398,8 +449,7 @@ bool image_equalize(
     }
 
     /*
-     * Etapa 3:
-     * monta a tabela de transformacao.
+     * Calcula a tabela de transformacao.
      */
     for (int i = 0;
          i < 256;
@@ -407,7 +457,9 @@ bool image_equalize(
     {
         if (cdf[i] < cdf_min)
         {
-            transformation[i] = 0;
+            transformation[i] =
+                0;
+
             continue;
         }
 
@@ -422,7 +474,8 @@ bool image_equalize(
             );
 
         double new_value =
-            normalized * 255.0;
+            normalized *
+            255.0;
 
         if (new_value < 0.0)
         {
@@ -441,9 +494,7 @@ bool image_equalize(
     }
 
     /*
-     * Etapa 4:
-     * aplica a nova intensidade
-     * em cada pixel.
+     * Aplica a transformacao.
      */
     for (int y = 0;
          y < surface->h;
@@ -476,11 +527,6 @@ bool image_equalize(
 
             pixel[2] =
                 equalized_value;
-
-            /*
-             * O canal alpha permanece
-             * inalterado.
-             */
         }
     }
 
@@ -488,7 +534,8 @@ bool image_equalize(
         surface
     );
 
-    image->equalized = true;
+    image->equalized =
+        true;
 
     printf(
         "Equalizacao do histograma concluida.\n"
@@ -496,6 +543,7 @@ bool image_equalize(
 
     return true;
 }
+
 
 bool image_restore_original(
     Image *image
@@ -513,11 +561,8 @@ bool image_restore_original(
     }
 
     /*
-     * Cria uma nova copia da imagem original.
-     *
-     * Nao usamos diretamente original_surface
-     * como surface porque queremos manter
-     * original_surface preservada e intocada.
+     * Cria uma nova copia da original,
+     * preservando original_surface.
      */
     SDL_Surface *restored_surface =
         SDL_ConvertSurface(
@@ -537,8 +582,11 @@ bool image_restore_original(
     }
 
     /*
-     * Libera a imagem atual, que neste momento
-     * pode ser a versao equalizada.
+     * Somente depois de conseguir criar
+     * a nova superficie destruimos a atual.
+     *
+     * Assim evitamos perder a imagem caso
+     * a copia falhe.
      */
     if (image->surface != NULL)
     {
@@ -547,10 +595,6 @@ bool image_restore_original(
         );
     }
 
-    /*
-     * A imagem atual passa a ser novamente
-     * uma copia da original em escala de cinza.
-     */
     image->surface =
         restored_surface;
 
@@ -563,6 +607,7 @@ bool image_restore_original(
 
     return true;
 }
+
 
 bool image_save_png(
     Image *image,
@@ -586,10 +631,10 @@ bool image_save_png(
     }
 
     /*
-     * Verifica se o arquivo ja existia
-     * antes do salvamento.
+     * Verifica se o arquivo ja existia.
      */
-    bool file_already_exists = false;
+    bool file_already_exists =
+        false;
 
     FILE *existing_file =
         fopen(
@@ -599,7 +644,8 @@ bool image_save_png(
 
     if (existing_file != NULL)
     {
-        file_already_exists = true;
+        file_already_exists =
+            true;
 
         fclose(
             existing_file
@@ -613,9 +659,9 @@ bool image_save_png(
         NULL;
 
     /*
-     * Se a resolucao exibida for diferente
-     * da resolucao real da superficie,
-     * cria uma superficie redimensionada.
+     * Caso a resolucao exibida seja
+     * diferente da resolucao real da imagem,
+     * cria uma superficie temporaria.
      */
     if (image->surface->w != output_width ||
         image->surface->h != output_height)
@@ -645,10 +691,6 @@ bool image_save_png(
             .h = output_height
         };
 
-        /*
-         * Redimensiona a imagem para exatamente
-         * a resolucao atualmente exibida.
-         */
         if (!SDL_BlitSurfaceScaled(
                 image->surface,
                 NULL,
@@ -674,10 +716,7 @@ bool image_save_png(
     }
 
     /*
-     * Salva em PNG.
-     *
-     * IMG_SavePNG sobrescreve o arquivo
-     * caso ele ja exista.
+     * Salva a imagem PNG.
      */
     if (!IMG_SavePNG(
             surface_to_save,
@@ -701,10 +740,8 @@ bool image_save_png(
     }
 
     /*
-     * Libera somente a superficie temporaria.
-     *
-     * image->surface continua pertencendo
-     * a estrutura Image.
+     * Libera a superficie temporaria,
+     * caso ela tenha sido criada.
      */
     if (resized_surface != NULL)
     {
@@ -731,6 +768,7 @@ bool image_save_png(
     return true;
 }
 
+
 void image_destroy(
     Image *image
 )
@@ -746,7 +784,8 @@ void image_destroy(
             image->surface
         );
 
-        image->surface = NULL;
+        image->surface =
+            NULL;
     }
 
     if (image->original_surface != NULL)
@@ -755,8 +794,10 @@ void image_destroy(
             image->original_surface
         );
 
-        image->original_surface = NULL;
+        image->original_surface =
+            NULL;
     }
 
-    image->equalized = false;
+    image->equalized =
+        false;
 }
