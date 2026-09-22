@@ -11,7 +11,7 @@ DEP := $(OBJ:.o=.d)
 CFLAGS := -std=c99 -Wall -Wextra -MMD -MP
 
 SDL_CFLAGS := $(shell $(PKG_CONFIG) --cflags sdl3 sdl3-image sdl3-ttf)
-SDL_LIBS := $(shell $(PKG_CONFIG) --libs sdl3 sdl3-image sdl3-ttf)
+SDL_LIBS := $(filter-out -mwindows,$(shell $(PKG_CONFIG) --libs sdl3 sdl3-image sdl3-ttf))
 
 CFLAGS += $(SDL_CFLAGS)
 LDLIBS := $(SDL_LIBS) -lm
