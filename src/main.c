@@ -535,7 +535,9 @@ int main(int argc, char *argv[])
          */
         info_window_render(
             &info_window,
-            &histogram
+            &histogram,
+            image.equalized,
+            main_window.original_resolution
         );
 
         SDL_Delay(16);
