@@ -470,6 +470,55 @@ int main(int argc, char *argv[])
                 default:
 
                     break;
+
+                case SDL_EVENT_KEY_DOWN:
+
+                    /*
+                    * Ignora repeticoes automaticas caso
+                    * o usuario mantenha a tecla pressionada.
+                    */
+                    if (!event.key.repeat &&
+                        event.key.key == SDLK_S)
+                    {
+                        int save_width;
+                        int save_height;
+
+                        /*
+                        * Define a resolucao do arquivo
+                        * conforme o modo atualmente exibido.
+                        */
+                        if (main_window.original_resolution)
+                        {
+                            save_width =
+                                image.surface->w;
+
+                            save_height =
+                                image.surface->h;
+                        }
+                        else
+                        {
+                            save_width =
+                                MAIN_WINDOW_WIDTH;
+
+                            save_height =
+                                MAIN_WINDOW_HEIGHT;
+                        }
+
+                        if (!image_save_png(
+                                &image,
+                                save_width,
+                                save_height,
+                                "output_image.png"))
+                        {
+                            fprintf(
+                                stderr,
+                                "Falha ao salvar output_image.png.\n"
+                            );
+                        }
+                    }
+
+                    break;
+                
             }
         }
 

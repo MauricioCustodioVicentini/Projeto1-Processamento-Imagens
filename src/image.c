@@ -564,6 +564,173 @@ bool image_restore_original(
     return true;
 }
 
+bool image_save_png(
+    Image *image,
+    int output_width,
+    int output_height,
+    const char *filename
+)
+{
+    if (image == NULL ||
+        image->surface == NULL ||
+        filename == NULL ||
+        output_width <= 0 ||
+        output_height <= 0)
+    {
+        fprintf(
+            stderr,
+            "Erro: dados invalidos para salvar imagem.\n"
+        );
+
+        return false;
+    }
+
+    /*
+     * Verifica se o arquivo ja existia
+     * antes do salvamento.
+     */
+    bool file_already_exists = false;
+
+    FILE *existing_file =
+        fopen(
+            filename,
+            "rb"
+        );
+
+    if (existing_file != NULL)
+    {
+        file_already_exists = true;
+
+        fclose(
+            existing_file
+        );
+    }
+
+    SDL_Surface *surface_to_save =
+        image->surface;
+
+    SDL_Surface *resized_surface =
+        NULL;
+
+    /*
+     * Se a resolucao exibida for diferente
+     * da resolucao real da superficie,
+     * cria uma superficie redimensionada.
+     */
+    if (image->surface->w != output_width ||
+        image->surface->h != output_height)
+    {
+        resized_surface =
+            SDL_CreateSurface(
+                output_width,
+                output_height,
+                SDL_PIXELFORMAT_RGBA32
+            );
+
+        if (resized_surface == NULL)
+        {
+            fprintf(
+                stderr,
+                "Erro ao criar superficie para salvamento: %s\n",
+                SDL_GetError()
+            );
+
+            return false;
+        }
+
+        SDL_Rect destination_rect = {
+            .x = 0,
+            .y = 0,
+            .w = output_width,
+            .h = output_height
+        };
+
+        /*
+         * Redimensiona a imagem para exatamente
+         * a resolucao atualmente exibida.
+         */
+        if (!SDL_BlitSurfaceScaled(
+                image->surface,
+                NULL,
+                resized_surface,
+                &destination_rect,
+                SDL_SCALEMODE_LINEAR))
+        {
+            fprintf(
+                stderr,
+                "Erro ao redimensionar imagem para salvamento: %s\n",
+                SDL_GetError()
+            );
+
+            SDL_DestroySurface(
+                resized_surface
+            );
+
+            return false;
+        }
+
+        surface_to_save =
+            resized_surface;
+    }
+
+    /*
+     * Salva em PNG.
+     *
+     * IMG_SavePNG sobrescreve o arquivo
+     * caso ele ja exista.
+     */
+    if (!IMG_SavePNG(
+            surface_to_save,
+            filename))
+    {
+        fprintf(
+            stderr,
+            "Erro ao salvar '%s': %s\n",
+            filename,
+            SDL_GetError()
+        );
+
+        if (resized_surface != NULL)
+        {
+            SDL_DestroySurface(
+                resized_surface
+            );
+        }
+
+        return false;
+    }
+
+    /*
+     * Libera somente a superficie temporaria.
+     *
+     * image->surface continua pertencendo
+     * a estrutura Image.
+     */
+    if (resized_surface != NULL)
+    {
+        SDL_DestroySurface(
+            resized_surface
+        );
+    }
+
+    if (file_already_exists)
+    {
+        printf(
+            "Arquivo %s sobrescrito com sucesso.\n",
+            filename
+        );
+    }
+    else
+    {
+        printf(
+            "Arquivo %s criado com sucesso.\n",
+            filename
+        );
+    }
+
+    return true;
+}
+
 void image_destroy(
     Image *image
 )

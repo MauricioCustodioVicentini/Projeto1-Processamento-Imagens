@@ -38,6 +38,13 @@ bool image_restore_original(
     Image *image
 );
 
+bool image_save_png(
+    Image *image,
+    int output_width,
+    int output_height,
+    const char *filename
+);
+
 void image_destroy(
     Image *image
 );
