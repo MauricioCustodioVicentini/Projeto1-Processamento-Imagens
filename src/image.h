@@ -18,8 +18,9 @@ bool image_load(
     Image *image
 );
 
-bool image_is_grayscale(
-    const Image *image
+bool image_check_grayscale(
+    const Image *image,
+    bool *is_grayscale
 );
 
 bool image_convert_to_grayscale(
