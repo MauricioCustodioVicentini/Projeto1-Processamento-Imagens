@@ -1,3 +1,8 @@
+// Luiz Fernando Ferrari Batistela - RA 10427397
+// Mauricio Custodio Vicentini - RA 10426074
+// Victor Hong - RA 10425852
+
+
 #include <stdio.h>
 #include <stdlib.h>
 
