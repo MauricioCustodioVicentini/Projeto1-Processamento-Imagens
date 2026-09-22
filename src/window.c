@@ -2,6 +2,9 @@
 
 #include <stdio.h>
 
+#define FONT_PATH "assets/fonts/DejaVuSans.ttf"
+#define FONT_SIZE 18.0f
+
 
 static bool position_main_window(
     AppWindow *app_window,
@@ -15,9 +18,6 @@ static bool position_main_window(
         return false;
     }
 
-    /*
-     * Obtem o monitor principal.
-     */
     SDL_DisplayID primary_display =
         SDL_GetPrimaryDisplay();
 
@@ -32,9 +32,6 @@ static bool position_main_window(
         return false;
     }
 
-    /*
-     * Obtem os limites do monitor principal.
-     */
     SDL_Rect display_bounds;
 
     if (!SDL_GetDisplayBounds(
@@ -50,10 +47,6 @@ static bool position_main_window(
         return false;
     }
 
-    /*
-     * Se a janela ultrapassar o tamanho
-     * do monitor, posiciona em (0,0).
-     */
     if (window_width > display_bounds.w ||
         window_height > display_bounds.h)
     {
@@ -74,10 +67,6 @@ static bool position_main_window(
         return true;
     }
 
-    /*
-     * Caso a janela caiba no monitor,
-     * calcula sua posicao central.
-     */
     int position_x =
         display_bounds.x +
         (display_bounds.w - window_width) / 2;
@@ -123,9 +112,196 @@ static bool point_inside_rect(
 }
 
 
+static SDL_Texture *create_text_texture(
+    SDL_Renderer *renderer,
+    TTF_Font *font,
+    const char *text,
+    SDL_Color color,
+    float *width,
+    float *height
+)
+{
+    if (renderer == NULL ||
+        font == NULL ||
+        text == NULL)
+    {
+        return NULL;
+    }
+
+    SDL_Surface *text_surface =
+        TTF_RenderText_Blended(
+            font,
+            text,
+            0,
+            color
+        );
+
+    if (text_surface == NULL)
+    {
+        fprintf(
+            stderr,
+            "Erro ao renderizar texto '%s': %s\n",
+            text,
+            SDL_GetError()
+        );
+
+        return NULL;
+    }
+
+    SDL_Texture *text_texture =
+        SDL_CreateTextureFromSurface(
+            renderer,
+            text_surface
+        );
+
+    if (text_texture == NULL)
+    {
+        fprintf(
+            stderr,
+            "Erro ao criar textura do texto: %s\n",
+            SDL_GetError()
+        );
+
+        SDL_DestroySurface(
+            text_surface
+        );
+
+        return NULL;
+    }
+
+    if (width != NULL)
+    {
+        *width =
+            (float)text_surface->w;
+    }
+
+    if (height != NULL)
+    {
+        *height =
+            (float)text_surface->h;
+    }
+
+    SDL_DestroySurface(
+        text_surface
+    );
+
+    return text_texture;
+}
+
+
+static bool draw_text(
+    SDL_Renderer *renderer,
+    TTF_Font *font,
+    const char *text,
+    float x,
+    float y,
+    SDL_Color color
+)
+{
+    float width = 0.0f;
+    float height = 0.0f;
+
+    SDL_Texture *texture =
+        create_text_texture(
+            renderer,
+            font,
+            text,
+            color,
+            &width,
+            &height
+        );
+
+    if (texture == NULL)
+    {
+        return false;
+    }
+
+    SDL_FRect destination = {
+        .x = x,
+        .y = y,
+        .w = width,
+        .h = height
+    };
+
+    SDL_RenderTexture(
+        renderer,
+        texture,
+        NULL,
+        &destination
+    );
+
+    SDL_DestroyTexture(
+        texture
+    );
+
+    return true;
+}
+
+
+static bool draw_text_centered(
+    SDL_Renderer *renderer,
+    TTF_Font *font,
+    const char *text,
+    const SDL_FRect *rect,
+    SDL_Color color
+)
+{
+    if (rect == NULL)
+    {
+        return false;
+    }
+
+    float width = 0.0f;
+    float height = 0.0f;
+
+    SDL_Texture *texture =
+        create_text_texture(
+            renderer,
+            font,
+            text,
+            color,
+            &width,
+            &height
+        );
+
+    if (texture == NULL)
+    {
+        return false;
+    }
+
+    SDL_FRect destination = {
+        .x =
+            rect->x +
+            (rect->w - width) / 2.0f,
+
+        .y =
+            rect->y +
+            (rect->h - height) / 2.0f,
+
+        .w = width,
+        .h = height
+    };
+
+    SDL_RenderTexture(
+        renderer,
+        texture,
+        NULL,
+        &destination
+    );
+
+    SDL_DestroyTexture(
+        texture
+    );
+
+    return true;
+}
+
+
 static void draw_button(
     SDL_Renderer *renderer,
-    const Button *button
+    TTF_Font *font,
+    const Button *button,
+    const char *text
 )
 {
     if (renderer == NULL ||
@@ -134,10 +310,6 @@ static void draw_button(
         return;
     }
 
-    /*
-     * Define a cor do botao conforme
-     * o estado de interacao.
-     */
     switch (button->state)
     {
         case BUTTON_HOVER:
@@ -178,17 +350,11 @@ static void draw_button(
             break;
     }
 
-    /*
-     * Preenche o botao.
-     */
     SDL_RenderFillRect(
         renderer,
         &button->rect
     );
 
-    /*
-     * Desenha o contorno.
-     */
     SDL_SetRenderDrawColor(
         renderer,
         20,
@@ -200,6 +366,25 @@ static void draw_button(
     SDL_RenderRect(
         renderer,
         &button->rect
+    );
+
+    /*
+     * Texto branco centralizado
+     * dentro do botao.
+     */
+    SDL_Color text_color = {
+        255,
+        255,
+        255,
+        255
+    };
+
+    draw_text_centered(
+        renderer,
+        font,
+        text,
+        &button->rect,
+        text_color
     );
 }
 
@@ -217,19 +402,16 @@ static void draw_histogram(
     }
 
     /*
-     * Area utilizada pelo histograma
-     * na janela secundaria.
+     * Diminuimos um pouco a altura para
+     * liberar espaco para as informacoes.
      */
     SDL_FRect graph_area = {
         .x = 30.0f,
-        .y = 40.0f,
+        .y = 45.0f,
         .w = 360.0f,
-        .h = 300.0f
+        .h = 245.0f
     };
 
-    /*
-     * Borda do grafico.
-     */
     SDL_SetRenderDrawColor(
         renderer,
         60,
@@ -243,10 +425,6 @@ static void draw_histogram(
         &graph_area
     );
 
-    /*
-     * Cada intensidade ocupa uma parte
-     * da largura total do histograma.
-     */
     float bar_width =
         graph_area.w /
         (float)HISTOGRAM_LEVELS;
@@ -281,8 +459,11 @@ static void draw_histogram(
                 graph_area.h -
                 bar_height,
 
-            .w = bar_width,
-            .h = bar_height
+            .w =
+                bar_width,
+
+            .h =
+                bar_height
         };
 
         SDL_RenderFillRect(
@@ -311,29 +492,13 @@ bool window_initialize(
     app_window->renderer = NULL;
     app_window->image_texture = NULL;
     app_window->id = 0;
+    app_window->original_resolution = false;
 
-    /*
-     * O programa inicia exibindo
-     * a imagem em 1024x768.
-     */
-    app_window->original_resolution =
-        false;
+    app_window->image_rect.x = 0.0f;
+    app_window->image_rect.y = 0.0f;
+    app_window->image_rect.w = MAIN_WINDOW_WIDTH;
+    app_window->image_rect.h = MAIN_WINDOW_HEIGHT;
 
-    app_window->image_rect.x =
-        0.0f;
-
-    app_window->image_rect.y =
-        0.0f;
-
-    app_window->image_rect.w =
-        MAIN_WINDOW_WIDTH;
-
-    app_window->image_rect.h =
-        MAIN_WINDOW_HEIGHT;
-
-    /*
-     * Cria janela principal e renderer.
-     */
     if (!SDL_CreateWindowAndRenderer(
             "Projeto 1 - Processamento de Imagens",
             MAIN_WINDOW_WIDTH,
@@ -351,9 +516,6 @@ bool window_initialize(
         return false;
     }
 
-    /*
-     * Posiciona a janela inicialmente.
-     */
     if (!position_main_window(
             app_window,
             MAIN_WINDOW_WIDTH,
@@ -370,10 +532,6 @@ bool window_initialize(
         app_window->window
     );
 
-    /*
-     * Guarda o ID da janela para
-     * identificar seus eventos.
-     */
     app_window->id =
         SDL_GetWindowID(
             app_window->window
@@ -415,24 +573,15 @@ bool window_set_image(
         return false;
     }
 
-    /*
-     * Destrui a textura anterior,
-     * caso exista.
-     */
     if (app_window->image_texture != NULL)
     {
         SDL_DestroyTexture(
             app_window->image_texture
         );
 
-        app_window->image_texture =
-            NULL;
+        app_window->image_texture = NULL;
     }
 
-    /*
-     * Cria uma nova textura a partir
-     * da superficie atual.
-     */
     app_window->image_texture =
         SDL_CreateTextureFromSurface(
             app_window->renderer,
@@ -450,19 +599,9 @@ bool window_set_image(
         return false;
     }
 
-    app_window->image_rect.x =
-        0.0f;
+    app_window->image_rect.x = 0.0f;
+    app_window->image_rect.y = 0.0f;
 
-    app_window->image_rect.y =
-        0.0f;
-
-    /*
-     * Mantem o modo de resolucao
-     * atualmente selecionado.
-     *
-     * Isso e importante quando a imagem
-     * e equalizada ou restaurada.
-     */
     if (app_window->original_resolution)
     {
         app_window->image_rect.w =
@@ -501,20 +640,12 @@ bool window_toggle_resolution(
         return false;
     }
 
-    /*
-     * Determina qual sera o novo modo.
-     */
     bool use_original_resolution =
         !app_window->original_resolution;
 
     int new_width;
     int new_height;
 
-    /*
-     * Se o novo modo for a resolucao
-     * original, usa as dimensoes reais
-     * da imagem.
-     */
     if (use_original_resolution)
     {
         new_width =
@@ -525,10 +656,6 @@ bool window_toggle_resolution(
     }
     else
     {
-        /*
-         * Caso contrario, volta para
-         * 1024x768.
-         */
         new_width =
             MAIN_WINDOW_WIDTH;
 
@@ -536,9 +663,6 @@ bool window_toggle_resolution(
             MAIN_WINDOW_HEIGHT;
     }
 
-    /*
-     * Altera o tamanho da janela.
-     */
     if (!SDL_SetWindowSize(
             app_window->window,
             new_width,
@@ -557,10 +681,6 @@ bool window_toggle_resolution(
         app_window->window
     );
 
-    /*
-     * Posiciona a janela conforme
-     * o tamanho do monitor.
-     */
     if (!position_main_window(
             app_window,
             new_width,
@@ -573,22 +693,11 @@ bool window_toggle_resolution(
         app_window->window
     );
 
-    /*
-     * Atualiza o estado somente depois
-     * das operacoes anteriores funcionarem.
-     */
     app_window->original_resolution =
         use_original_resolution;
 
-    /*
-     * Atualiza a area utilizada para
-     * desenhar a textura.
-     */
-    app_window->image_rect.x =
-        0.0f;
-
-    app_window->image_rect.y =
-        0.0f;
+    app_window->image_rect.x = 0.0f;
+    app_window->image_rect.y = 0.0f;
 
     app_window->image_rect.w =
         (float)new_width;
@@ -610,9 +719,6 @@ void window_render(
         return;
     }
 
-    /*
-     * Fundo preto da janela principal.
-     */
     SDL_SetRenderDrawColor(
         app_window->renderer,
         0,
@@ -625,9 +731,6 @@ void window_render(
         app_window->renderer
     );
 
-    /*
-     * Desenha a imagem atual.
-     */
     if (app_window->image_texture != NULL)
     {
         SDL_RenderTexture(
@@ -659,8 +762,7 @@ void window_destroy(
             app_window->image_texture
         );
 
-        app_window->image_texture =
-            NULL;
+        app_window->image_texture = NULL;
     }
 
     if (app_window->renderer != NULL)
@@ -669,8 +771,7 @@ void window_destroy(
             app_window->renderer
         );
 
-        app_window->renderer =
-            NULL;
+        app_window->renderer = NULL;
     }
 
     if (app_window->window != NULL)
@@ -679,14 +780,11 @@ void window_destroy(
             app_window->window
         );
 
-        app_window->window =
-            NULL;
+        app_window->window = NULL;
     }
 
     app_window->id = 0;
-
-    app_window->original_resolution =
-        false;
+    app_window->original_resolution = false;
 }
 
 
@@ -706,18 +804,12 @@ bool info_window_initialize(
         return false;
     }
 
-    info_window->window =
-        NULL;
+    info_window->window = NULL;
+    info_window->renderer = NULL;
+    info_window->id = 0;
+    info_window->font = NULL;
+    info_window->ttf_initialized = false;
 
-    info_window->renderer =
-        NULL;
-
-    info_window->id =
-        0;
-
-    /*
-     * Cria a janela secundaria.
-     */
     if (!SDL_CreateWindowAndRenderer(
             "Informacoes da Imagem",
             INFO_WINDOW_WIDTH,
@@ -735,10 +827,6 @@ bool info_window_initialize(
         return false;
     }
 
-    /*
-     * Define a janela secundaria
-     * como filha da janela principal.
-     */
     if (!SDL_SetWindowParent(
             info_window->window,
             parent_window))
@@ -756,9 +844,6 @@ bool info_window_initialize(
         return false;
     }
 
-    /*
-     * Posiciona a janela secundaria.
-     */
     if (!SDL_SetWindowPosition(
             info_window->window,
             0,
@@ -781,9 +866,6 @@ bool info_window_initialize(
         info_window->window
     );
 
-    /*
-     * Guarda o ID da janela secundaria.
-     */
     info_window->id =
         SDL_GetWindowID(
             info_window->window
@@ -805,7 +887,54 @@ bool info_window_initialize(
     }
 
     /*
-     * Configuracao do botao de equalizacao.
+     * Inicializa SDL_ttf.
+     */
+    if (!TTF_Init())
+    {
+        fprintf(
+            stderr,
+            "Erro ao inicializar SDL_ttf: %s\n",
+            SDL_GetError()
+        );
+
+        info_window_destroy(
+            info_window
+        );
+
+        return false;
+    }
+
+    info_window->ttf_initialized =
+        true;
+
+    /*
+     * Carrega a fonte que acompanha
+     * o projeto.
+     */
+    info_window->font =
+        TTF_OpenFont(
+            FONT_PATH,
+            FONT_SIZE
+        );
+
+    if (info_window->font == NULL)
+    {
+        fprintf(
+            stderr,
+            "Erro ao carregar fonte '%s': %s\n",
+            FONT_PATH,
+            SDL_GetError()
+        );
+
+        info_window_destroy(
+            info_window
+        );
+
+        return false;
+    }
+
+    /*
+     * Botao Equalizar.
      */
     info_window->equalize_button.rect.x =
         60.0f;
@@ -823,7 +952,7 @@ bool info_window_initialize(
         BUTTON_NORMAL;
 
     /*
-     * Configuracao do botao de resolucao.
+     * Botao Resolucao.
      */
     info_window->resolution_button.rect.x =
         60.0f;
@@ -855,9 +984,6 @@ InfoAction info_window_handle_event(
         return INFO_ACTION_NONE;
     }
 
-    /*
-     * Movimento do mouse.
-     */
     if (event->type ==
             SDL_EVENT_MOUSE_MOTION &&
         event->motion.windowID ==
@@ -869,60 +995,43 @@ InfoAction info_window_handle_event(
         float mouse_y =
             event->motion.y;
 
-        /*
-         * Estado do botao de equalizacao.
-         */
         if (point_inside_rect(
                 mouse_x,
                 mouse_y,
-                &info_window->
-                    equalize_button.rect))
+                &info_window->equalize_button.rect))
         {
-            if (info_window->
-                    equalize_button.state !=
+            if (info_window->equalize_button.state !=
                 BUTTON_PRESSED)
             {
-                info_window->
-                    equalize_button.state =
+                info_window->equalize_button.state =
                     BUTTON_HOVER;
             }
         }
         else
         {
-            info_window->
-                equalize_button.state =
+            info_window->equalize_button.state =
                 BUTTON_NORMAL;
         }
 
-        /*
-         * Estado do botao de resolucao.
-         */
         if (point_inside_rect(
                 mouse_x,
                 mouse_y,
-                &info_window->
-                    resolution_button.rect))
+                &info_window->resolution_button.rect))
         {
-            if (info_window->
-                    resolution_button.state !=
+            if (info_window->resolution_button.state !=
                 BUTTON_PRESSED)
             {
-                info_window->
-                    resolution_button.state =
+                info_window->resolution_button.state =
                     BUTTON_HOVER;
             }
         }
         else
         {
-            info_window->
-                resolution_button.state =
+            info_window->resolution_button.state =
                 BUTTON_NORMAL;
         }
     }
 
-    /*
-     * Mouse pressionado.
-     */
     if (event->type ==
             SDL_EVENT_MOUSE_BUTTON_DOWN &&
         event->button.windowID ==
@@ -939,29 +1048,22 @@ InfoAction info_window_handle_event(
         if (point_inside_rect(
                 mouse_x,
                 mouse_y,
-                &info_window->
-                    equalize_button.rect))
+                &info_window->equalize_button.rect))
         {
-            info_window->
-                equalize_button.state =
+            info_window->equalize_button.state =
                 BUTTON_PRESSED;
         }
 
         if (point_inside_rect(
                 mouse_x,
                 mouse_y,
-                &info_window->
-                    resolution_button.rect))
+                &info_window->resolution_button.rect))
         {
-            info_window->
-                resolution_button.state =
+            info_window->resolution_button.state =
                 BUTTON_PRESSED;
         }
     }
 
-    /*
-     * Mouse liberado.
-     */
     if (event->type ==
             SDL_EVENT_MOUSE_BUTTON_UP &&
         event->button.windowID ==
@@ -976,63 +1078,49 @@ InfoAction info_window_handle_event(
             event->button.y;
 
         bool equalize_clicked =
-            info_window->
-                equalize_button.state ==
-                    BUTTON_PRESSED &&
+            info_window->equalize_button.state ==
+                BUTTON_PRESSED &&
             point_inside_rect(
                 mouse_x,
                 mouse_y,
-                &info_window->
-                    equalize_button.rect
+                &info_window->equalize_button.rect
             );
 
         bool resolution_clicked =
-            info_window->
-                resolution_button.state ==
-                    BUTTON_PRESSED &&
+            info_window->resolution_button.state ==
+                BUTTON_PRESSED &&
             point_inside_rect(
                 mouse_x,
                 mouse_y,
-                &info_window->
-                    resolution_button.rect
+                &info_window->resolution_button.rect
             );
 
-        /*
-         * Depois de soltar o mouse,
-         * atualiza os estados dos botoes.
-         */
-        info_window->
-            equalize_button.state =
+        info_window->equalize_button.state =
             point_inside_rect(
                 mouse_x,
                 mouse_y,
-                &info_window->
-                    equalize_button.rect
+                &info_window->equalize_button.rect
             )
             ? BUTTON_HOVER
             : BUTTON_NORMAL;
 
-        info_window->
-            resolution_button.state =
+        info_window->resolution_button.state =
             point_inside_rect(
                 mouse_x,
                 mouse_y,
-                &info_window->
-                    resolution_button.rect
+                &info_window->resolution_button.rect
             )
             ? BUTTON_HOVER
             : BUTTON_NORMAL;
 
         if (equalize_clicked)
         {
-            return
-                INFO_ACTION_EQUALIZE;
+            return INFO_ACTION_EQUALIZE;
         }
 
         if (resolution_clicked)
         {
-            return
-                INFO_ACTION_RESOLUTION;
+            return INFO_ACTION_RESOLUTION;
         }
     }
 
@@ -1042,18 +1130,19 @@ InfoAction info_window_handle_event(
 
 void info_window_render(
     InfoWindow *info_window,
-    const Histogram *histogram
+    const Histogram *histogram,
+    bool image_equalized,
+    bool original_resolution
 )
 {
     if (info_window == NULL ||
-        info_window->renderer == NULL)
+        info_window->renderer == NULL ||
+        info_window->font == NULL ||
+        histogram == NULL)
     {
         return;
     }
 
-    /*
-     * Fundo da janela secundaria.
-     */
     SDL_SetRenderDrawColor(
         info_window->renderer,
         245,
@@ -1074,22 +1163,104 @@ void info_window_render(
         histogram
     );
 
+    SDL_Color text_color = {
+        30,
+        30,
+        30,
+        255
+    };
+
     /*
-     * Botao de equalizacao.
+     * Titulo.
      */
-    draw_button(
+    draw_text(
         info_window->renderer,
-        &info_window->
-            equalize_button
+        info_window->font,
+        "Histograma",
+        30.0f,
+        15.0f,
+        text_color
     );
 
     /*
-     * Botao de resolucao.
+     * Informacao da media.
      */
+    char mean_text[128];
+
+    snprintf(
+        mean_text,
+        sizeof(mean_text),
+        "Media: %.2f - %s",
+        histogram->mean,
+        histogram_brightness_classification(
+            histogram
+        )
+    );
+
+    draw_text(
+        info_window->renderer,
+        info_window->font,
+        mean_text,
+        30.0f,
+        310.0f,
+        text_color
+    );
+
+    /*
+     * Informacao do desvio padrao
+     * e classificacao de contraste.
+     */
+    char deviation_text[128];
+
+    snprintf(
+        deviation_text,
+        sizeof(deviation_text),
+        "Desvio padrao: %.2f - %s",
+        histogram->standard_deviation,
+        histogram_contrast_classification(
+            histogram
+        )
+    );
+
+    draw_text(
+        info_window->renderer,
+        info_window->font,
+        deviation_text,
+        30.0f,
+        340.0f,
+        text_color
+    );
+
+    /*
+     * O texto do primeiro botao
+     * depende do estado atual da imagem.
+     */
+    const char *equalize_text =
+        image_equalized
+        ? "Ver original"
+        : "Equalizar";
+
+    /*
+     * O texto mostra a acao que ocorrera
+     * no proximo clique.
+     */
+    const char *resolution_text =
+        original_resolution
+        ? "1024x768"
+        : "Resolucao original";
+
     draw_button(
         info_window->renderer,
-        &info_window->
-            resolution_button
+        info_window->font,
+        &info_window->equalize_button,
+        equalize_text
+    );
+
+    draw_button(
+        info_window->renderer,
+        info_window->font,
+        &info_window->resolution_button,
+        resolution_text
     );
 
     SDL_RenderPresent(
@@ -1107,14 +1278,26 @@ void info_window_destroy(
         return;
     }
 
+    /*
+     * Libera a fonte antes de finalizar
+     * o SDL_ttf.
+     */
+    if (info_window->font != NULL)
+    {
+        TTF_CloseFont(
+            info_window->font
+        );
+
+        info_window->font = NULL;
+    }
+
     if (info_window->renderer != NULL)
     {
         SDL_DestroyRenderer(
             info_window->renderer
         );
 
-        info_window->renderer =
-            NULL;
+        info_window->renderer = NULL;
     }
 
     if (info_window->window != NULL)
@@ -1123,8 +1306,15 @@ void info_window_destroy(
             info_window->window
         );
 
-        info_window->window =
-            NULL;
+        info_window->window = NULL;
+    }
+
+    if (info_window->ttf_initialized)
+    {
+        TTF_Quit();
+
+        info_window->ttf_initialized =
+            false;
     }
 
     info_window->id =
