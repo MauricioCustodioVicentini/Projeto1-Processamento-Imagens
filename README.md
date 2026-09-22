@@ -201,3 +201,111 @@ Durante a execução:
 Caso nenhum arquivo seja informado o programa apresenta uma mensagem de uso.
 
 Arquivos inexistentes ou inválidos também são tratados e informados no terminal
+
+---
+
+## Testes
+
+Foi criado um roteiro de testes para validar as funcionalidades do projeto.
+
+O documento completo está disponível em:
+
+text
+docs/testes.md
+
+
+Foram testados, entre outros cenários:
+
+- execução sem argumento;
+- arquivo inexistente ou inválido;
+- imagem colorida e imagem em escala de cinza;
+- histograma e informações estatísticas;
+- equalização e retorno à imagem original;
+- alteração de resolução;
+- imagem maior que o monitor;
+- salvamento e sobrescrita;
+- integração entre as funcionalidades;
+- fechamento das janelas.
+
+Após as correções realizadas durante o desenvolvimento, os testes executados apresentaram o comportamento esperado.
+
+---
+
+## Contribuições
+
+### Mauricio Custodio Vicentini
+
+Principais contribuições:
+
+- estrutura inicial do projeto;
+- janela principal;
+- janela secundária e gerenciamento de eventos;
+- integração entre os módulos;
+- alternância entre imagem original e equalizada;
+- alteração de resolução;
+- Makefile;
+- testes e ajustes finais.
+
+### Luiz Fernando Ferrari Batistela
+
+Principais contribuições:
+
+- carregamento de imagens;
+- tratamento de erros;
+- identificação e conversão para escala de cinza;
+- equalização;
+- preservação e restauração da imagem original;
+- salvamento em PNG;
+- testes e ajustes finais.
+
+### Victor Hong
+
+Principais contribuições:
+
+- cálculo do histograma;
+- cálculo da média e desvio padrão;
+- classificação de luminosidade e contraste;
+- renderização do histograma;
+- botões e estados de interação;
+- textos da interface com SDL_ttf;
+- testes e ajustes finais.
+
+---
+
+## Observações
+
+Os intervalos utilizados para classificar luminosidade e contraste foram definidos pelo grupo como critérios de interpretação dos valores calculados.
+
+### Luminosidade
+
+| Média | Classificação |
+|---|---|
+| menor que 85 | Escura |
+| 85 até abaixo de 171 | Média |
+| 171 ou superior | Clara |
+
+### Contraste
+
+| Desvio padrão | Classificação |
+|---|---|
+| menor que 42,5 | Baixo |
+| 42,5 até abaixo de 85 | Médio |
+| 85 ou superior | Alto |
+
+---
+
+## Repositório
+
+O código-fonte e o histórico de desenvolvimento estão disponíveis em:
+
+text
+https://github.com/MauricioCustodioVicentini/Projeto1-Processamento-Imagens
+
+
+---
+
+*Universidade Presbiteriana Mackenzie*  
+*Disciplina:* Computação Visual  
+*Projeto 1:* Processamento de Imagens
+
+
