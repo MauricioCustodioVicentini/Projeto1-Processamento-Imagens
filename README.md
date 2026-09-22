@@ -102,3 +102,102 @@ Projeto1-Processamento-Imagens/
 - `image.c` / `image.h`: carregamento, escala de cinza, equalização, restauração e salvamento.
 - `histogram.c` / `histogram.h`: cálculo do histograma, média, desvio padrão e classificações.
 - `window.c` / `window.h`: criação das janelas, interface, botões, textos e renderização.
+---
+
+## Ambiente e tecnologias
+
+O projeto foi desenvolvido e testado no seguinte ambiente:
+
+| Componente | Versão |
+|---|---|
+| Sistema operacional | Microsoft Windows 10 Home Single Language - 10.0.19045 |
+| Ambiente | MSYS2 MinGW64 |
+| GCC | 15.2.0 |
+| SDL3 | 3.4.16 |
+| SDL3_image | 3.4.6 |
+| SDL3_ttf | 3.2.2 |
+| Make | mingw32-make |
+
+Tecnologias utilizadas:
+
+- Linguagem C;
+- SDL3;
+- SDL3_image;
+- SDL3_ttf;
+- GCC;
+- Make;
+- pkg-config.
+
+---
+
+## Dependências
+
+No MSYS2 MinGW64 foram utilizados os pacotes:
+
+```text
+mingw-w64-x86_64-sdl3
+mingw-w64-x86_64-sdl3-image
+mingw-w64-x86_64-sdl3-ttf
+```
+
+O projeto também utiliza uma cópia da fonte DejaVu Sans localizada em:
+
+```text
+assets/fonts/DejaVuSans.ttf
+```
+
+---
+
+## Compilação
+
+A partir da raiz do projeto:
+
+```powershell
+mingw32-make
+```
+
+O executável gerado será:
+
+```text
+programa.exe
+```
+
+Para remover os arquivos gerados:
+
+```powershell
+mingw32-make clean
+```
+
+Para realizar uma recompilação completa:
+
+```powershell
+mingw32-make rebuild
+```
+
+---
+
+## Execução
+
+O programa exige um argumento contendo o caminho da imagem:
+
+```powershell
+.\programa.exe caminho_da_imagem
+```
+
+Exemplo:
+
+```powershell
+.\programa.exe samples\teste.png
+```
+
+Durante a execução:
+
+- `Equalizar` aplica a equalização do histograma;
+- `Ver original` restaura a imagem anterior;
+- `Resolucao original` utiliza as dimensões originais da imagem;
+- `1024x768` retorna à resolução inicial;
+- a tecla `S` salva a imagem em `output_image.png`.
+
+Caso nenhum arquivo seja informado o programa apresenta uma mensagem de uso.
+
+Arquivos inexistentes ou inválidos também são tratados e informados no terminal
